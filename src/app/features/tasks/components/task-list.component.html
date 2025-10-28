@@ -1,0 +1,58 @@
+<ion-list>
+  <ion-item-sliding *ngFor="let task of tasks; trackBy: trackByTaskId">
+    <ion-item [class.completed]="task.completed">
+      <ion-checkbox 
+        slot="start" 
+        [checked]="task.completed"
+        (ionChange)="onToggleTask(task.id)">
+      </ion-checkbox>
+      
+      <ion-label>
+        <h2 [class.task-completed]="task.completed">{{ task.title }}</h2>
+        <p [class.task-completed]="task.completed">{{ task.description }}</p>
+        <p class="task-date">
+          <ion-text color="medium">
+            <small>{{ task.createdAt | date:'short' }}</small>
+          </ion-text>
+          <ion-badge 
+            *ngIf="task.syncStatus === 'pending'" 
+            color="warning" 
+            class="sync-badge">
+            <ion-icon name="cloud-upload-outline" size="small"></ion-icon>
+            Pendiente
+          </ion-badge>
+          <ion-badge 
+            *ngIf="task.syncStatus === 'error'" 
+            color="danger" 
+            class="sync-badge">
+            <ion-icon name="alert-circle-outline" size="small"></ion-icon>
+            Error
+          </ion-badge>
+          <ion-badge 
+            *ngIf="task.syncStatus === 'synced'" 
+            color="success" 
+            class="sync-badge">
+            <ion-icon name="cloud-done-outline" size="small"></ion-icon>
+          </ion-badge>
+        </p>
+      </ion-label>
+    </ion-item>
+
+    <ion-item-options side="end">
+      <ion-item-option color="primary" (click)="onEditTask(task)">
+        <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+      </ion-item-option>
+      <ion-item-option color="danger" (click)="onDeleteTask(task.id)">
+        <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+      </ion-item-option>
+    </ion-item-options>
+  </ion-item-sliding>
+
+  <ion-item *ngIf="tasks.length === 0" lines="none">
+    <ion-label class="ion-text-center">
+      <ion-text color="medium">
+        <p>No hay tareas. ¡Crea una nueva!</p>
+      </ion-text>
+    </ion-label>
+  </ion-item>
+</ion-list>

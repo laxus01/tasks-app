@@ -1,0 +1,63 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>
+      Mis Tareas
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="syncTasks()" [disabled]="!isOnline">
+        <ion-icon slot="icon-only" name="sync-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+  <ion-toolbar *ngIf="!isOnline">
+    <ion-item lines="none" color="warning">
+      <ion-icon name="cloud-offline-outline" slot="start"></ion-icon>
+      <ion-label>Modo Offline</ion-label>
+    </ion-item>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
+  <ion-header collapse="condense">
+    <ion-toolbar>
+      <ion-title size="large">Mis Tareas</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <div class="content-wrapper">
+    <!-- Formulario de creación/edición -->
+    <ion-card *ngIf="showForm">
+      <ion-card-header>
+        <ion-card-title>
+          {{ editingTask ? 'Editar Tarea' : 'Nueva Tarea' }}
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <app-task-form 
+          [task]="editingTask"
+          (formSubmit)="onCreateTask($event)"
+          (formCancel)="onHideForm()">
+        </app-task-form>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Lista de tareas -->
+    <app-task-list 
+      [tasks]="tasks"
+      (taskToggle)="onToggleTask($event)"
+      (taskEdit)="onEditTask($event)"
+      (taskDelete)="onDeleteTask($event)">
+    </app-task-list>
+  </div>
+
+  <!-- Botón flotante para agregar tarea -->
+  <ion-fab vertical="bottom" horizontal="center" slot="fixed" *ngIf="!showForm">
+    <ion-fab-button (click)="onShowForm()">
+      <ion-icon name="add"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+</ion-content>

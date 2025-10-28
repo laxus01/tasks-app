@@ -1,0 +1,44 @@
+<form [formGroup]="taskForm" (ngSubmit)="onSubmit()">
+  <ion-item>
+    <ion-label position="stacked">Título *</ion-label>
+    <ion-input 
+      formControlName="title" 
+      type="text" 
+      placeholder="Ingresa el título de la tarea">
+    </ion-input>
+  </ion-item>
+  <ion-text color="danger" *ngIf="title?.invalid && title?.touched">
+    <p class="error-message" *ngIf="title?.errors?.['required']">
+      El título es requerido
+    </p>
+    <p class="error-message" *ngIf="title?.errors?.['minlength']">
+      El título debe tener al menos 3 caracteres
+    </p>
+  </ion-text>
+
+  <ion-item>
+    <ion-label position="stacked">Descripción *</ion-label>
+    <ion-textarea 
+      formControlName="description" 
+      rows="4"
+      placeholder="Ingresa la descripción de la tarea">
+    </ion-textarea>
+  </ion-item>
+  <ion-text color="danger" *ngIf="description?.invalid && description?.touched">
+    <p class="error-message" *ngIf="description?.errors?.['required']">
+      La descripción es requerida
+    </p>
+    <p class="error-message" *ngIf="description?.errors?.['minlength']">
+      La descripción debe tener al menos 5 caracteres
+    </p>
+  </ion-text>
+
+  <div class="form-buttons">
+    <ion-button expand="block" type="submit" [disabled]="taskForm.invalid">
+      {{ task ? 'Actualizar' : 'Crear' }} Tarea
+    </ion-button>
+    <ion-button expand="block" color="light" type="button" (click)="onCancel()">
+      Cancelar
+    </ion-button>
+  </div>
+</form>

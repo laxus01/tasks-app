@@ -34,6 +34,8 @@ export class TaskService {
       const db = this.databaseService.getDatabase();
       const result = await db.query('SELECT * FROM tasks ORDER BY createdAt DESC');
       
+      console.log('[TaskService] loadTasks - Raw DB result:', result.values);
+      
       const tasks: Task[] = result.values?.map((row: any) => ({
         id: row.id,
         serverId: row.serverId,
@@ -45,6 +47,7 @@ export class TaskService {
         syncStatus: row.syncStatus as 'synced' | 'pending' | 'error'
       })) || [];
 
+      console.log('[TaskService] loadTasks - Mapped tasks:', tasks.map(t => ({ id: t.id, title: t.title, completed: t.completed })));
       this.tasksSubject.next(tasks);
     } catch (error) {
       console.error('Error loading tasks:', error);
@@ -96,6 +99,7 @@ export class TaskService {
 
   async updateTask(taskDto: UpdateTaskDto): Promise<void> {
     try {
+      console.log('[TaskService] updateTask called with:', taskDto);
       const db = this.databaseService.getDatabase();
       const now = new Date().toISOString();
       
@@ -115,6 +119,7 @@ export class TaskService {
       if (taskDto.completed !== undefined) {
         updates.push('completed = ?');
         values.push(taskDto.completed ? 1 : 0);
+        console.log('[TaskService] Setting completed to:', taskDto.completed, '(DB value:', taskDto.completed ? 1 : 0, ')');
       }
 
       updates.push('updatedAt = ?');
@@ -126,7 +131,9 @@ export class TaskService {
       values.push(taskDto.id);
 
       const query = `UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`;
-      await db.run(query, values);
+      console.log('[TaskService] Executing query:', query, 'with values:', values);
+      const result = await db.run(query, values);
+      console.log('[TaskService] Update result:', result);
       await this.loadTasks();
       
       // Intentar sincronizar si hay conexión
@@ -163,17 +170,23 @@ export class TaskService {
 
   async toggleTaskCompletion(id: number): Promise<void> {
     try {
+      console.log('[TaskService] toggleTaskCompletion called with id:', id);
       const tasks = this.tasksSubject.value;
       const task = tasks.find(t => t.id === id);
       
       if (task) {
+        console.log('[TaskService] Task found:', { id: task.id, title: task.title, currentCompleted: task.completed });
+        console.log('[TaskService] Toggling to:', !task.completed);
         await this.updateTask({
           id,
           completed: !task.completed
         });
+        console.log('[TaskService] Task toggled successfully');
+      } else {
+        console.warn('[TaskService] Task not found with id:', id);
       }
     } catch (error) {
-      console.error('Error toggling task completion:', error);
+      console.error('[TaskService] Error toggling task completion:', error);
       throw error;
     }
   }

@@ -92,9 +92,11 @@ export class TasksPage implements OnInit, OnDestroy {
 
   async onToggleTask(taskId: number): Promise<void> {
     try {
+      console.log('[TasksPage] onToggleTask called with taskId:', taskId);
       await this.taskService.toggleTaskCompletion(taskId);
+      console.log('[TasksPage] Task toggled successfully');
     } catch (error) {
-      console.error('Error toggling task:', error);
+      console.error('[TasksPage] Error toggling task:', error);
       await this.showToast('Error al actualizar la tarea', 'danger');
     }
   }

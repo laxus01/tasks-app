@@ -128,10 +128,13 @@ CREATE TABLE sync_metadata (
 ### 1. `ApiService`
 Maneja todas las peticiones HTTP al backend:
 - `getAllTasks()`: Obtener todas las tareas
+- `getTask(id)`: Obtener una tarea específica por ID
 - `createTask()`: Crear nueva tarea
-- `updateTask()`: Actualizar tarea
-- `deleteTask()`: Eliminar tarea
-- `syncTasks()`: Sincronizar cambios bidireccionales
+- `updateTask(id, data)`: Actualizar tarea existente
+- `toggleTaskComplete(id)`: Alternar estado de completado
+- `deleteTask(id)`: Eliminar tarea
+- `getChangesSince(timestamp)`: Obtener cambios desde un timestamp
+- `syncTasks(request)`: Sincronizar cambios bidireccionales
 
 ### 2. `NetworkService`
 Detecta el estado de la red:

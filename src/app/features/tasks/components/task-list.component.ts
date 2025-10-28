@@ -14,8 +14,12 @@ export class TaskListComponent {
   @Output() taskDelete = new EventEmitter<number>();
 
   onToggleTask(taskId: number | undefined): void {
+    console.log('[TaskListComponent] onToggleTask called with taskId:', taskId);
     if (taskId !== undefined) {
       this.taskToggle.emit(taskId);
+      console.log('[TaskListComponent] taskToggle event emitted');
+    } else {
+      console.warn('[TaskListComponent] taskId is undefined');
     }
   }
 

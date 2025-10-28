@@ -4,7 +4,7 @@
 
 export const environment = {
   production: false,
-  apiUrl: 'https://tasks-backend-production-36fd.up.railway.app/'
+  apiUrl: 'https://tasks-backend-production-36fd.up.railway.app/api'
 };
 
 /*

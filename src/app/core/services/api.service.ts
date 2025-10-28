@@ -11,6 +11,7 @@ export interface TaskResponse {
   completed: boolean;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
 }
 
 export interface SyncRequest {

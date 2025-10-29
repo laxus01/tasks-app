@@ -25,9 +25,6 @@ Aplicación móvil híbrida de lista de tareas construida con Ionic, Angular y C
 ## 🛠️ Instalación
 
 1. Clonar el repositorio o navegar al directorio del proyecto:
-```bash
-cd todo-app
-```
 
 2. Instalar dependencias:
 ```bash
@@ -50,6 +47,9 @@ La aplicación se abrirá en `http://localhost:8100`
 # Agregar plataforma Android
 ionic capacitor add android
 
+# Compilar proyecto
+ionic capacitor build android
+
 # Sincronizar cambios
 ionic capacitor sync android
 
@@ -61,6 +61,9 @@ ionic capacitor open android
 ```bash
 # Agregar plataforma iOS
 ionic capacitor add ios
+
+# Compilar proyecto
+ionic capacitor build ios
 
 # Sincronizar cambios
 ionic capacitor sync ios

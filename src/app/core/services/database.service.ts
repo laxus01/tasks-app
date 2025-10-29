@@ -9,6 +9,7 @@ export class DatabaseService {
   private sqlite: SQLiteConnection = new SQLiteConnection(CapacitorSQLite);
   private db: SQLiteDBConnection | null = null;
   private readonly DB_NAME = 'todoapp.db';
+  private readonly DB_VERSION = 2; // Incrementar cuando hay cambios en el esquema
   private isInitialized = false;
 
   constructor() {}
@@ -35,6 +36,7 @@ export class DatabaseService {
 
       await this.db.open();
       await this.createTables();
+      await this.runMigrations();
       this.isInitialized = true;
     } catch (error) {
       console.error('Error initializing database:', error);
@@ -79,6 +81,47 @@ export class DatabaseService {
       `INSERT OR IGNORE INTO sync_metadata (id, lastSyncTimestamp) VALUES (1, ?)`,
       [new Date(0).toISOString()]
     );
+  }
+
+  private async runMigrations(): Promise<void> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      // Verificar si existe la columna serverId
+      const tableInfo = await this.db.query(
+        "PRAGMA table_info(tasks)"
+      );
+
+      const hasServerId = tableInfo.values?.some(
+        (column: any) => column.name === 'serverId'
+      );
+
+      if (!hasServerId) {
+        console.log('[Database] Migrando: Agregando columna serverId');
+        await this.db.execute(
+          'ALTER TABLE tasks ADD COLUMN serverId TEXT'
+        );
+        console.log('[Database] Migración completada: serverId agregado');
+      }
+
+      // Verificar si existe la columna syncStatus
+      const hasSyncStatus = tableInfo.values?.some(
+        (column: any) => column.name === 'syncStatus'
+      );
+
+      if (!hasSyncStatus) {
+        console.log('[Database] Migrando: Agregando columna syncStatus');
+        await this.db.execute(
+          "ALTER TABLE tasks ADD COLUMN syncStatus TEXT DEFAULT 'pending'"
+        );
+        console.log('[Database] Migración completada: syncStatus agregado');
+      }
+    } catch (error) {
+      console.error('[Database] Error en migraciones:', error);
+      throw error;
+    }
   }
 
   getDatabase(): SQLiteDBConnection {

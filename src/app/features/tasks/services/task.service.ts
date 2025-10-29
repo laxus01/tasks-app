@@ -1,5 +1,6 @@
-import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
+import { Injectable, inject, OnDestroy } from '@angular/core';
+import { BehaviorSubject, Observable, firstValueFrom, Subscription, Subject } from 'rxjs';
+import { filter, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { DatabaseService } from '../../../core/services/database.service';
 import { ApiService, TaskChange, SyncRequest } from '../../../core/services/api.service';
 import { NetworkService } from '../../../core/services/network.service';
@@ -8,25 +9,69 @@ import { Task, CreateTaskDto, UpdateTaskDto } from '../models/task.model';
 @Injectable({
   providedIn: 'root'
 })
-export class TaskService {
+export class TaskService implements OnDestroy {
   private databaseService = inject(DatabaseService);
   private apiService = inject(ApiService);
   private networkService = inject(NetworkService);
   private tasksSubject = new BehaviorSubject<Task[]>([]);
   public tasks$: Observable<Task[]> = this.tasksSubject.asObservable();
+  private syncCompletedSubject = new Subject<void>();
+  public syncCompleted$: Observable<void> = this.syncCompletedSubject.asObservable();
   private isSyncing = false;
+  private networkSubscription?: Subscription;
+  private wasOffline = false;
 
   async initialize(): Promise<void> {
     await this.databaseService.initializeDatabase();
     await this.loadTasks();
     
-    // Configurar listener de cambios de red
-    this.networkService.online$.subscribe(async (isOnline) => {
-      if (isOnline && !this.isSyncing) {
-        console.log('Conexión detectada, iniciando sincronización...');
-        await this.syncTasks();
-      }
-    });
+    // Configurar listener de cambios de red con auto-sincronización
+    this.setupNetworkListener();
+  }
+
+  /**
+   * Configura el listener de red para sincronización automática
+   */
+  private setupNetworkListener(): void {
+    this.networkSubscription = this.networkService.online$
+      .pipe(
+        distinctUntilChanged(), // Solo emitir cuando el valor cambie
+        debounceTime(500) // Esperar 500ms para evitar múltiples eventos
+      )
+      .subscribe(async (isOnline) => {
+        console.log('[TaskService] Estado de red cambió:', isOnline ? 'Online' : 'Offline');
+        
+        if (isOnline && this.wasOffline) {
+          // El dispositivo acaba de recuperar la conexión
+          console.log('[TaskService] ✅ Conexión recuperada - Iniciando sincronización automática...');
+          
+          try {
+            await this.syncTasks();
+            console.log('[TaskService] ✅ Sincronización automática completada');
+            
+            // Recargar tareas para actualizar la UI
+            await this.loadTasks();
+            
+            // Notificar que la sincronización se completó
+            this.syncCompletedSubject.next();
+            console.log('[TaskService] Evento syncCompleted emitido');
+          } catch (error) {
+            console.error('[TaskService] ❌ Error en sincronización automática:', error);
+          }
+        }
+        
+        // Actualizar el estado anterior
+        this.wasOffline = !isOnline;
+      });
+  }
+
+  /**
+   * Limpia las suscripciones al destruir el servicio
+   */
+  ngOnDestroy(): void {
+    if (this.networkSubscription) {
+      this.networkSubscription.unsubscribe();
+    }
   }
 
   async loadTasks(): Promise<void> {

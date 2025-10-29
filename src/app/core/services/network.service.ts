@@ -54,8 +54,23 @@ export class NetworkService {
   private async initMobileNetworkListener(): Promise<void> {
     Network.addListener('networkStatusChange', status => {
       const isOnline = status.connected;
+      const currentValue = this.onlineSubject.value;
+      
+      console.log('[NetworkService] Cambio de estado detectado:', {
+        connected: status.connected,
+        connectionType: status.connectionType,
+        currentValue: currentValue,
+        newValue: isOnline
+      });
+      
+      // Filtrar eventos redundantes - solo emitir si el estado realmente cambió
+      if (currentValue === isOnline) {
+        console.log('[NetworkService] ⏭️ Evento ignorado - estado sin cambios');
+        return;
+      }
+      
       this.onlineSubject.next(isOnline);
-      console.log('Estado de red (Mobile):', isOnline ? 'Online' : 'Offline');
+      console.log('[NetworkService] Estado de red (Mobile):', isOnline ? 'Online' : 'Offline');
     });
   }
 

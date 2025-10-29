@@ -1,5 +1,5 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
-import { AlertController, ModalController, ToastController } from '@ionic/angular';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angular/core';
+import { AlertController, ToastController } from '@ionic/angular';
 import { Subscription } from 'rxjs';
 import { Task } from '../models/task.model';
 import { TaskService } from '../services/task.service';
@@ -16,7 +16,7 @@ export class TasksPage implements OnInit, OnDestroy {
   private networkService = inject(NetworkService);
   private alertController = inject(AlertController);
   private toastController = inject(ToastController);
-  private modalController = inject(ModalController);
+  private cdr = inject(ChangeDetectorRef);
 
   tasks: Task[] = [];
   showForm = false;
@@ -24,13 +24,23 @@ export class TasksPage implements OnInit, OnDestroy {
   isOnline = true;
   private tasksSubscription?: Subscription;
   private networkSubscription?: Subscription;
+  private syncCompletedSubscription?: Subscription;
 
   async ngOnInit(): Promise<void> {
     try {
       await this.taskService.initialize();
+      
+      // Suscribirse a cambios de tareas
       this.tasksSubscription = this.taskService.tasks$.subscribe(tasks => {
         this.tasks = tasks;
       });
+      
+      // Suscribirse a eventos de sincronización completada
+      this.syncCompletedSubscription = this.taskService.syncCompleted$.subscribe(() => {
+        // Forzar detección de cambios para actualizar el estado visual de las tareas
+        this.cdr.detectChanges();
+      });
+      
       this.setupNetworkListener();
     } catch (error) {
       console.error('Error initializing tasks page:', error);
@@ -41,6 +51,7 @@ export class TasksPage implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.tasksSubscription?.unsubscribe();
     this.networkSubscription?.unsubscribe();
+    this.syncCompletedSubscription?.unsubscribe();
   }
 
   setupNetworkListener(): void {
@@ -50,12 +61,28 @@ export class TasksPage implements OnInit, OnDestroy {
     // Suscribirse a cambios de red
     this.networkSubscription = this.networkService.online$.subscribe(async (isOnline) => {
       const wasOffline = !this.isOnline;
+      
+      // Actualizar el estado inmediatamente para que el banner se actualice
       this.isOnline = isOnline;
       
+      // Forzar detección de cambios para actualizar el banner inmediatamente
+      this.cdr.detectChanges();
+      
       if (isOnline && wasOffline) {
-        await this.showToast('Conexión restaurada. Sincronizando...', 'success');
-      } else if (!isOnline) {
-        await this.showToast('Sin conexión. Trabajando offline', 'warning');
+        // Conexión recuperada - mostrar notificación
+        await this.showToast('🌐 Conexión restaurada. Sincronizando tareas...', 'success', 2000);
+        
+        // Verificar después de un tiempo si la sincronización completó
+        setTimeout(async () => {
+          const pendingTasks = this.tasks.filter(t => t.syncStatus === 'pending');
+          
+          if (pendingTasks.length === 0) {
+            await this.showToast('✅ Todas las tareas están sincronizadas', 'success', 2000);
+          }
+        }, 3000);
+      } else if (!isOnline && wasOffline) {
+        // Conexión perdida
+        await this.showToast('📵 Sin conexión. Trabajando offline', 'warning', 2000);
       }
     });
   }
@@ -92,11 +119,9 @@ export class TasksPage implements OnInit, OnDestroy {
 
   async onToggleTask(taskId: number): Promise<void> {
     try {
-      console.log('[TasksPage] onToggleTask called with taskId:', taskId);
       await this.taskService.toggleTaskCompletion(taskId);
-      console.log('[TasksPage] Task toggled successfully');
     } catch (error) {
-      console.error('[TasksPage] Error toggling task:', error);
+      console.error('Error toggling task:', error);
       await this.showToast('Error al actualizar la tarea', 'danger');
     }
   }
@@ -157,10 +182,10 @@ export class TasksPage implements OnInit, OnDestroy {
     }
   }
 
-  private async showToast(message: string, color: string): Promise<void> {
+  private async showToast(message: string, color: string, duration: number = 2000): Promise<void> {
     const toast = await this.toastController.create({
       message,
-      duration: 2000,
+      duration,
       color,
       position: 'bottom'
     });

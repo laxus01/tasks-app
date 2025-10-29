@@ -1,7 +1,6 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
-import { catchError, timeout } from 'rxjs/operators';
+import { Injectable } from '@angular/core';
+import axios, { AxiosInstance, AxiosError } from 'axios';
+import { from, Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export interface TaskResponse {
@@ -47,115 +46,133 @@ export interface ServerChange {
   providedIn: 'root'
 })
 export class ApiService {
-  private http = inject(HttpClient);
+  private axiosInstance: AxiosInstance;
   private readonly apiUrl = environment.apiUrl;
   private readonly REQUEST_TIMEOUT = 10000; // 10 segundos
+
+  constructor() {
+    this.axiosInstance = axios.create({
+      baseURL: this.apiUrl,
+      timeout: this.REQUEST_TIMEOUT,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    // Interceptor para manejo de errores
+    this.axiosInstance.interceptors.response.use(
+      response => response,
+      error => this.handleError(error)
+    );
+  }
 
   /**
    * Obtener todas las tareas del servidor
    */
   getAllTasks(): Observable<TaskResponse[]> {
-    return this.http.get<TaskResponse[]>(`${this.apiUrl}/tasks`)
-      .pipe(
-        timeout(this.REQUEST_TIMEOUT),
-        catchError(this.handleError)
-      );
+    return from(
+      this.axiosInstance.get<TaskResponse[]>('/tasks')
+        .then(response => response.data)
+    );
   }
 
   /**
    * Obtener una tarea específica por ID
    */
   getTask(id: string): Observable<TaskResponse> {
-    return this.http.get<TaskResponse>(`${this.apiUrl}/tasks/${id}`)
-      .pipe(
-        timeout(this.REQUEST_TIMEOUT),
-        catchError(this.handleError)
-      );
+    return from(
+      this.axiosInstance.get<TaskResponse>(`/tasks/${id}`)
+        .then(response => response.data)
+    );
   }
 
   /**
    * Crear una nueva tarea en el servidor
    */
   createTask(task: { title: string; description: string }): Observable<TaskResponse> {
-    return this.http.post<TaskResponse>(`${this.apiUrl}/tasks`, task)
-      .pipe(
-        timeout(this.REQUEST_TIMEOUT),
-        catchError(this.handleError)
-      );
+    return from(
+      this.axiosInstance.post<TaskResponse>('/tasks', task)
+        .then(response => response.data)
+    );
   }
 
   /**
    * Actualizar una tarea existente
    */
   updateTask(id: string, task: Partial<{ title: string; description: string; completed: boolean }>): Observable<TaskResponse> {
-    return this.http.put<TaskResponse>(`${this.apiUrl}/tasks/${id}`, task)
-      .pipe(
-        timeout(this.REQUEST_TIMEOUT),
-        catchError(this.handleError)
-      );
+    return from(
+      this.axiosInstance.put<TaskResponse>(`/tasks/${id}`, task)
+        .then(response => response.data)
+    );
   }
 
   /**
    * Alternar el estado de completado de una tarea
    */
   toggleTaskComplete(id: string): Observable<TaskResponse> {
-    return this.http.patch<TaskResponse>(`${this.apiUrl}/tasks/${id}/toggle`, {})
-      .pipe(
-        timeout(this.REQUEST_TIMEOUT),
-        catchError(this.handleError)
-      );
+    return from(
+      this.axiosInstance.patch<TaskResponse>(`/tasks/${id}/toggle`, {})
+        .then(response => response.data)
+    );
   }
 
   /**
    * Eliminar una tarea
    */
   deleteTask(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/tasks/${id}`)
-      .pipe(
-        timeout(this.REQUEST_TIMEOUT),
-        catchError(this.handleError)
-      );
+    return from(
+      this.axiosInstance.delete<void>(`/tasks/${id}`)
+        .then(response => response.data)
+    );
   }
 
   /**
    * Obtener cambios desde un timestamp específico
    */
   getChangesSince(timestamp: string): Observable<TaskResponse[]> {
-    return this.http.get<TaskResponse[]>(`${this.apiUrl}/tasks/changes`, {
-      params: { since: timestamp }
-    })
-      .pipe(
-        timeout(this.REQUEST_TIMEOUT),
-        catchError(this.handleError)
-      );
+    return from(
+      this.axiosInstance.get<TaskResponse[]>('/tasks/changes', {
+        params: { since: timestamp }
+      })
+        .then(response => response.data)
+    );
   }
 
   /**
    * Sincronizar cambios locales con el servidor
    */
   syncTasks(syncRequest: SyncRequest): Observable<SyncResponse> {
-    return this.http.post<SyncResponse>(`${this.apiUrl}/tasks/sync`, syncRequest)
-      .pipe(
-        timeout(this.REQUEST_TIMEOUT),
-        catchError(this.handleError)
-      );
+    return from(
+      this.axiosInstance.post<SyncResponse>('/tasks/sync', syncRequest)
+        .then(response => response.data)
+    );
   }
 
   /**
-   * Manejo de errores HTTP
+   * Manejo de errores de Axios
    */
-  private handleError(error: HttpErrorResponse): Observable<never> {
+  private handleError(error: AxiosError): Promise<never> {
     let errorMessage = 'Error desconocido';
 
-    if (error.error instanceof ErrorEvent) {
-      // Error del lado del cliente
-      errorMessage = `Error: ${error.error.message}`;
+    if (error.response) {
+      // El servidor respondió con un código de estado fuera del rango 2xx
+      errorMessage = `Código de error: ${error.response.status}\nMensaje: ${error.message}`;
+      console.error('Error en API (respuesta):', {
+        status: error.response.status,
+        data: error.response.data,
+        headers: error.response.headers
+      });
+    } else if (error.request) {
+      // La petición fue hecha pero no se recibió respuesta
+      errorMessage = `Error de red: No se recibió respuesta del servidor`;
+      console.error('Error en API (sin respuesta):', error.request);
     } else {
-      // Error del lado del servidor
-      errorMessage = `Código de error: ${error.status}\nMensaje: ${error.message}`;
+      // Algo sucedió al configurar la petición
+      errorMessage = `Error: ${error.message}`;
+      console.error('Error en API (configuración):', error.message);
     }
 
     console.error('Error en API:', errorMessage);
-    return throwError(() => error);
+    return Promise.reject(error);
   }
 }
